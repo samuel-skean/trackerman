@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 axum = { version = "0.8.1", features = ["macros"] }
 tokio = { version = "1.42.0", features = ["full"] }
+uuid = { version = "1.11.0", features = ["serde"] }
