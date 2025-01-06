@@ -9,4 +9,4 @@ I'm not at all certain of the legality of the images used for the logo, so we'll
 
 Brought to you by some people named Sam.
 [Samuel Skean](samuel-skean.github.io)
-> TODO: Add plug for Samuel Effendy.
+[Samuel Effendy](https://github.com/dejazzhands)
