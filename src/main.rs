@@ -5,12 +5,11 @@ use uuid::Uuid;
 #[tokio::main]
 async fn main() {
 
-    // TODO: Even I feel like this API is verbose, and I like Java! It also
-    // deliberately doesn't expose the term event, because I feel like that's a
-    // bit ambiguous. It might refer to a whole kind of event we're tracking, or
-    // just one instance of it. In the context of this code, an *event* is
-    // always an instance, while a *tracker* has multiple events. We may
-    // reconsider exposing this.
+    // The API deliberately doesn't expose the term event, because I feel like
+    // that's a bit ambiguous. It might refer to a whole kind of event we're
+    // tracking, or just one instance of it. In the context of this code, an
+    // *event* is always an instance, while a *tracker* has multiple events. We
+    // may reconsider exposing this.
 
     // NOTE: I'm using trailing /'s for all paths, for consistency and because
     // it's what some tools (*cough* Go *cough*) seem to prefer. Ideally I would
@@ -19,7 +18,7 @@ async fn main() {
     let app = Router::new()
         // Each tracker:
         .route_service("/trackers/{tracker_id}/", put(put_event))
-        .route_service("/trackers/{tracker_id}/summary/", get(get_tracker_summary))
+        .route_service("/trackers/{tracker_id}/description/", get(get_tracker_description))
         .route_service("/trackers/{tracker_id}/list/", get(get_tracker_events_list))
         .route_service("/trackers/{tracker_id}/status/", get(get_tracker_status))
         .route_service("/trackers/{tracker_id}/start/", post(start_event))
@@ -27,11 +26,9 @@ async fn main() {
         .route_service("/trackers/{tracker_id}/stop_and_increment/", post(stop_and_increment_event))
 
         // Multiple trackers:
-        .route_service("/trackers/summaries/", get(get_all_tracker_summaries))
-        .route_service("/trackers/lists/", get(get_all_tracker_event_lists))
+        .route_service("/trackers/descriptions/", get(get_all_tracker_descriptions))
         // Tags also serve as human-readable names for trackers.
-        .route_service("/tracker_tags/{tag}/summaries/", get(get_tracker_summaries_by_tag))
-        .route_service("/tracker_tags/{tag}/list/", get(get_tracker_event_lists_by_tag));
+        .route_service("/tracker_tags/{tag}/", get(get_trackers_ids_by_tag));
 
     let listener = TcpListener::bind("0.0.0.0:2010").await.unwrap();
 
@@ -39,8 +36,8 @@ async fn main() {
 }
 
 #[axum::debug_handler]
-async fn get_tracker_summary(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!("Getting summary of {tracker_id}\n")
+async fn get_tracker_description(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
+    format!("Getting description of {tracker_id}\n")
 }
 
 #[axum::debug_handler]
@@ -79,22 +76,11 @@ async fn stop_and_increment_event(Path(tracker_id): Path<Uuid>) -> impl IntoResp
 }
 
 #[axum::debug_handler]
-async fn get_all_tracker_summaries() -> impl IntoResponse {
-    "Get all tracker summaries\n"
+async fn get_all_tracker_descriptions() -> impl IntoResponse {
+    "Get all tracker descriptions\n"
 }
 
 #[axum::debug_handler]
-async fn get_all_tracker_event_lists() -> impl IntoResponse {
-    "Get all lists of all the events for all the trackers.\n\
-     Is this even a good idea?\n"
-}
-
-#[axum::debug_handler]
-async fn get_tracker_summaries_by_tag(Path(tag): Path<String>) -> impl IntoResponse {
-    format!("Definitely getting tracker summaries with the tag: {tag}\n")
-}
-
-#[axum::debug_handler]
-async fn get_tracker_event_lists_by_tag(Path(tag): Path<String>) -> impl IntoResponse {
-    format!("Definitely getting tracker event lists with the tag: {tag}\n")
+async fn get_trackers_ids_by_tag(Path(tag): Path<String>) -> impl IntoResponse {
+    format!("Definitely getting a list of tracker ids with the tag: {tag}\n")
 }
