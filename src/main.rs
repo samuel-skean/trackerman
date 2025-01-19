@@ -1,4 +1,5 @@
 use axum::{extract::Path, response::IntoResponse, routing::{get, post, put}, Router};
+use axum_extra::routing::RouterExt as _;
 use tokio::net::TcpListener;
 use uuid::Uuid;
 
@@ -11,24 +12,28 @@ async fn main() {
     // *event* is always an instance, while a *tracker* has multiple events. We
     // may reconsider exposing this.
 
-    // NOTE: I'm using trailing /'s for all paths, for consistency and because
-    // it's what some tools (*cough* Go *cough*) seem to prefer. Ideally I would
-    // redirect anyone who got this wrong, but I don't know how to do that yet
-    // with Axum.
+    // NOTE: I'm redirecting all paths to paths that end in trailing slashes.
+    // This seems to be the default preferred by Go. This seems significantly
+    // better than normalizing paths internally, since the client is made aware
+    // of the canonical URL here.
+    //
+    // It's kinda ugly that I have to do this for each endpoint - I'd rather
+    // there were some middleware that did it that I could apply to the whole
+    // router... but oh well.
     let app = Router::new()
         // Each tracker:
-        .route_service("/trackers/{tracker_id}/", put(put_event))
-        .route_service("/trackers/{tracker_id}/description/", get(get_tracker_description))
-        .route_service("/trackers/{tracker_id}/list/", get(get_tracker_events_list))
-        .route_service("/trackers/{tracker_id}/status/", get(get_tracker_status))
-        .route_service("/trackers/{tracker_id}/start/", post(start_event))
-        .route_service("/trackers/{tracker_id}/stop/", post(stop_event))
-        .route_service("/trackers/{tracker_id}/stop_and_increment/", post(stop_and_increment_event))
+        .route_service_with_tsr("/trackers/{tracker_id}/", put(put_event))
+        .route_service_with_tsr("/trackers/{tracker_id}/description/", get(get_tracker_description))
+        .route_service_with_tsr("/trackers/{tracker_id}/list/", get(get_tracker_events_list))
+        .route_service_with_tsr("/trackers/{tracker_id}/status/", get(get_tracker_status))
+        .route_service_with_tsr("/trackers/{tracker_id}/start/", post(start_event))
+        .route_service_with_tsr("/trackers/{tracker_id}/stop/", post(stop_event))
+        .route_service_with_tsr("/trackers/{tracker_id}/stop_and_increment/", post(stop_and_increment_event))
 
         // Multiple trackers:
-        .route_service("/trackers/descriptions/", get(get_all_tracker_descriptions))
+        .route_service_with_tsr("/trackers/descriptions/", get(get_all_tracker_descriptions))
         // Tags also serve as human-readable names for trackers.
-        .route_service("/tracker_tags/{tag}/", get(get_trackers_ids_by_tag));
+        .route_service_with_tsr("/tracker_tags/{tag}/", get(get_trackers_ids_by_tag));
 
     let listener = TcpListener::bind("0.0.0.0:2010").await.unwrap();
 
