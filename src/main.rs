@@ -22,18 +22,18 @@ async fn main() {
     // router... but oh well.
     let app = Router::new()
         // Each tracker:
-        .route_service_with_tsr("/trackers/{tracker_id}/", put(put_event))
-        .route_service_with_tsr("/trackers/{tracker_id}/description/", get(get_tracker_description))
-        .route_service_with_tsr("/trackers/{tracker_id}/list/", get(get_tracker_events_list))
-        .route_service_with_tsr("/trackers/{tracker_id}/status/", get(get_tracker_status))
-        .route_service_with_tsr("/trackers/{tracker_id}/start/", post(start_event))
-        .route_service_with_tsr("/trackers/{tracker_id}/stop/", post(stop_event))
-        .route_service_with_tsr("/trackers/{tracker_id}/stop_and_increment/", post(stop_and_increment_event))
+        .route_with_tsr("/trackers/{tracker_id}/", put(put_event))
+        .route_with_tsr("/trackers/{tracker_id}/description/", get(get_tracker_description))
+        .route_with_tsr("/trackers/{tracker_id}/list/", get(get_tracker_events_list))
+        .route_with_tsr("/trackers/{tracker_id}/status/", get(get_tracker_status))
+        .route_with_tsr("/trackers/{tracker_id}/start/", post(start_event))
+        .route_with_tsr("/trackers/{tracker_id}/stop/", post(stop_event))
+        .route_with_tsr("/trackers/{tracker_id}/stop_and_increment/", post(stop_and_increment_event))
 
         // Multiple trackers:
-        .route_service_with_tsr("/trackers/descriptions/", get(get_all_tracker_descriptions))
+        .route_with_tsr("/trackers/descriptions/", get(get_all_tracker_descriptions))
         // Tags also serve as human-readable names for trackers.
-        .route_service_with_tsr("/tracker_tags/{tag}/", get(get_trackers_ids_by_tag));
+        .route_with_tsr("/tracker_tags/{tag}/", get(get_trackers_ids_by_tag));
 
     let listener = TcpListener::bind("0.0.0.0:2010").await.unwrap();
 
