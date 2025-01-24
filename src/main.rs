@@ -1,10 +1,25 @@
-use axum::{extract::Path, response::IntoResponse, routing::{get, post, put}, Router};
+mod logic;
+
+use std::sync::Arc;
+
+use axum::{extract::{Path, State}, http::StatusCode, response::IntoResponse, routing::{get, post, put}, Router};
 use axum_extra::routing::RouterExt as _;
+use logic::tracker_description;
+use sqlx::PgPool;
 use tokio::net::TcpListener;
 use uuid::Uuid;
 
+struct AppState {
+    db_conn_pool: PgPool,
+}
+
 #[tokio::main]
-async fn main() {
+// Consider anyhow for errors, see [this post](https://www.reddit.com/r/rust/comments/17neomp/comment/k7rhrss/) for a nice breakdown.
+async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+    let db_conn_url = std::env::var("DATABASE_URL").expect("DATABASE_URL env var must be set. TODO: Support .env files in the running app.");
+
+    let db_conn_pool =  sqlx::PgPool::connect(&db_conn_url).await?;
 
     // The API deliberately doesn't expose the term event, because I feel like
     // that's a bit ambiguous. It might refer to a whole kind of event we're
@@ -23,6 +38,7 @@ async fn main() {
     let app = Router::new()
         // Each tracker:
         .route_with_tsr("/trackers/{tracker_id}/", put(put_event))
+        // TODO: Allow clients to set the description as well.
         .route_with_tsr("/trackers/{tracker_id}/description/", get(get_tracker_description))
         .route_with_tsr("/trackers/{tracker_id}/list/", get(get_tracker_events_list))
         .route_with_tsr("/trackers/{tracker_id}/status/", get(get_tracker_status))
@@ -33,16 +49,21 @@ async fn main() {
         // Multiple trackers:
         .route_with_tsr("/trackers/descriptions/", get(get_all_tracker_descriptions))
         // Tags also serve as human-readable names for trackers.
-        .route_with_tsr("/tracker_tags/{tag}/", get(get_trackers_ids_by_tag));
+        .route_with_tsr("/tracker_tags/{tag}/", get(get_trackers_ids_by_tag))
+        .with_state(Arc::new(AppState { db_conn_pool }));
 
+    // TODO: Configure this port with an environment var.
     let listener = TcpListener::bind("0.0.0.0:2010").await.unwrap();
 
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app).await?;
+    Ok(())
 }
 
 #[axum::debug_handler]
-async fn get_tracker_description(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!("Getting description of {tracker_id}\n")
+async fn get_tracker_description(State(state): State<Arc<AppState>>, Path(tracker_id): Path<Uuid>) -> Result<String, StatusCode> {
+    // TODO: Distinguish between NOT_FOUND and internal errors (and probably
+    // other errors too, for all I know).
+    tracker_description(&state.db_conn_pool, tracker_id).await.map_err(|_| { StatusCode::NOT_FOUND })
 }
 
 #[axum::debug_handler]
