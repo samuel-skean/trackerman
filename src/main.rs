@@ -61,9 +61,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 
 #[axum::debug_handler]
 async fn get_tracker_description(State(state): State<Arc<AppState>>, Path(tracker_id): Path<Uuid>) -> Result<String, StatusCode> {
-    // TODO: Distinguish between NOT_FOUND and internal errors (and probably
-    // other errors too, for all I know).
-    tracker_description(&state.db_conn_pool, tracker_id).await.map_err(|_| { StatusCode::NOT_FOUND })
+    tracker_description(&state.db_conn_pool, tracker_id).await.map_err(|_| { StatusCode::INTERNAL_SERVER_ERROR }).transpose().unwrap_or(Err(StatusCode::NOT_FOUND))
 }
 
 #[axum::debug_handler]
