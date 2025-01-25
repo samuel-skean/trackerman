@@ -21,7 +21,6 @@ CREATE TABLE events
     end_time TIMESTAMP (0),
 
     new_value BIGINT NOT NULL,
-    -- TODO: Maybe each of these should be unique, not just their combination?
-    -- Should we allow overlaps for the same tracker?
+    -- TODO: Prohibit overlaps for the same tracker.
     UNIQUE (start_time, end_time)
 );

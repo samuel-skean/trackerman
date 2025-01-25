@@ -2,7 +2,13 @@ mod logic;
 
 use std::sync::Arc;
 
-use axum::{extract::{Path, State}, http::StatusCode, response::IntoResponse, routing::{get, post, put}, Router};
+use axum::{
+    extract::{Path, State},
+    http::StatusCode,
+    response::IntoResponse,
+    routing::{get, post, put},
+    Router,
+};
 use axum_extra::routing::RouterExt as _;
 use logic::tracker_description;
 use sqlx::PgPool;
@@ -16,10 +22,10 @@ struct AppState {
 #[tokio::main]
 // Consider anyhow for errors, see [this post](https://www.reddit.com/r/rust/comments/17neomp/comment/k7rhrss/) for a nice breakdown.
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let db_conn_url = std::env::var("DATABASE_URL")
+        .expect("DATABASE_URL env var must be set. TODO: Support .env files in the running app.");
 
-    let db_conn_url = std::env::var("DATABASE_URL").expect("DATABASE_URL env var must be set. TODO: Support .env files in the running app.");
-
-    let db_conn_pool =  sqlx::PgPool::connect(&db_conn_url).await?;
+    let db_conn_pool = sqlx::PgPool::connect(&db_conn_url).await?;
 
     // The API deliberately doesn't expose the term event, because I feel like
     // that's a bit ambiguous. It might refer to a whole kind of event we're
@@ -39,13 +45,18 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         // Each tracker:
         .route_with_tsr("/trackers/{tracker_id}/", put(put_event))
         // TODO: Allow clients to set the description as well.
-        .route_with_tsr("/trackers/{tracker_id}/description/", get(get_tracker_description))
+        .route_with_tsr(
+            "/trackers/{tracker_id}/description/",
+            get(get_tracker_description),
+        )
         .route_with_tsr("/trackers/{tracker_id}/list/", get(get_tracker_events_list))
         .route_with_tsr("/trackers/{tracker_id}/status/", get(get_tracker_status))
         .route_with_tsr("/trackers/{tracker_id}/start/", post(start_event))
         .route_with_tsr("/trackers/{tracker_id}/stop/", post(stop_event))
-        .route_with_tsr("/trackers/{tracker_id}/stop_and_increment/", post(stop_and_increment_event))
-
+        .route_with_tsr(
+            "/trackers/{tracker_id}/stop_and_increment/",
+            post(stop_and_increment_event),
+        )
         // Multiple trackers:
         .route_with_tsr("/trackers/descriptions/", get(get_all_tracker_descriptions))
         // Tags also serve as human-readable names for trackers.
@@ -60,8 +71,15 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 #[axum::debug_handler]
-async fn get_tracker_description(State(state): State<Arc<AppState>>, Path(tracker_id): Path<Uuid>) -> Result<String, StatusCode> {
-    tracker_description(&state.db_conn_pool, tracker_id).await.map_err(|_| { StatusCode::INTERNAL_SERVER_ERROR }).transpose().unwrap_or(Err(StatusCode::NOT_FOUND))
+async fn get_tracker_description(
+    State(state): State<Arc<AppState>>,
+    Path(tracker_id): Path<Uuid>,
+) -> Result<String, StatusCode> {
+    tracker_description(&state.db_conn_pool, tracker_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .transpose()
+        .unwrap_or(Err(StatusCode::NOT_FOUND))
 }
 
 #[axum::debug_handler]
@@ -76,27 +94,35 @@ async fn get_tracker_events_list(Path(tracker_id): Path<Uuid>) -> impl IntoRespo
 
 #[axum::debug_handler]
 async fn get_tracker_status(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!("Getting the status of {tracker_id} (whether it's ongoing and its current counter value)\n")
+    format!(
+        "Getting the status of {tracker_id} (whether it's ongoing and its current counter value)\n"
+    )
 }
 
 #[axum::debug_handler]
 async fn start_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!("Attempting to start event for tracker {tracker_id}\n\
-             This would fail if the event were ongoing\n")
+    format!(
+        "Attempting to start event for tracker {tracker_id}\n\
+             This would fail if the event were ongoing\n"
+    )
 }
 
 #[axum::debug_handler]
 async fn stop_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!("Attempting to stop event for tracker {tracker_id}\n\
+    format!(
+        "Attempting to stop event for tracker {tracker_id}\n\
              This would fail if the event were ongoing\n\
-             You could supply a new value for the counter here.\n")
+             You could supply a new value for the counter here.\n"
+    )
 }
 
 #[axum::debug_handler]
 async fn stop_and_increment_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!("Attempting to stop event for tracker {tracker_id}\n\
+    format!(
+        "Attempting to stop event for tracker {tracker_id}\n\
              This would fail if the event were ongoing\n\
-             You may not supply a new value for the counter here, it will simply be incremented\n")
+             You may not supply a new value for the counter here, it will simply be incremented\n"
+    )
 }
 
 #[axum::debug_handler]
