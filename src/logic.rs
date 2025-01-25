@@ -12,3 +12,5 @@ pub async fn tracker_description(pool: &PgPool, tracker_id: Uuid) -> Result<Opti
 
    Ok(res.map(|r| r.description))
 }
+
+// Effendy: status, start, stop

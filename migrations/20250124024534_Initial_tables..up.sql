@@ -17,8 +17,8 @@ CREATE TABLE events
     tracker_id UUID REFERENCES trackers NOT NULL,
 
     -- Precision to the second (matches integers in sqlite):
-    start_time TIMESTAMP (0) NOT NULL,
-    end_time TIMESTAMP (0) NOT NULL,
+    start_time TIMESTAMP (0) NOT NULL CONSTRAINT ends_after_start CHECK (end_time >= start_time),
+    end_time TIMESTAMP (0),
 
     new_value BIGINT NOT NULL,
     -- TODO: Maybe each of these should be unique, not just their combination?
