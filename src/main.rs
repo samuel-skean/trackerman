@@ -1,6 +1,6 @@
 mod logic;
 
-use std::sync::Arc;
+use std::{str::FromStr as _, sync::Arc};
 
 use axum::{
     extract::Path, response::IntoResponse, routing::{get, post}, Json, Router
@@ -9,6 +9,8 @@ use axum_extra::routing::RouterExt as _;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
+use tower_http::trace::TraceLayer;
+use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 use uuid::Uuid;
 
 struct AppState {
@@ -18,6 +20,34 @@ struct AppState {
 #[tokio::main]
 // Consider anyhow for errors, see [this post](https://www.reddit.com/r/rust/comments/17neomp/comment/k7rhrss/) for a nice breakdown.
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+
+    // Tracing: Generally following advice from fasterthanlime, here's an
+    // example:
+    // https://fasterthanli.me/series/building-a-rust-service-with-nix/part-4#adding-tracing
+    //
+    // One difference is, I'm using tower_http::TraceLayer which is
+    // "higher-level" than the tracing output he gets. Also, not sure how he was
+    // getting super detailed tracing for other crates (like hyper) which I
+    // don't believe he directly configured.
+
+    // Fetches max tracing level from the environment. CONSIDER: Using
+    // with_env_filter for better defaults, as mentioned here:
+    // https://www.ianbull.com/posts/axum-rust-tracing#how-with_env_filter-works
+    // Not doing that right now to match fasterthanlime's stuff better and
+    // because it seems a bit more complicated, especially to add fallback to
+    // it. Don't just blindly follow that tutorial though, try using
+    // EnvFilter::builder to provide fallback in a type-safe way.
+    let filter = tracing_subscriber::filter::Targets::from_str(std::env::var("RUST_LOG").as_deref().unwrap_or("info"))
+        .expect("RUST_LOG should be a valid tracing filter");
+
+    
+    tracing_subscriber::fmt()
+        .with_max_level(tracing::Level::TRACE)
+        .finish()
+        .with(filter)
+        .init();
+
     let db_conn_url = std::env::var("DATABASE_URL")
         .expect("DATABASE_URL env var must be set. TODO: Support .env files in the running app.");
 
@@ -51,7 +81,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             "/trackers/{tracker_id}/stop_and_increment/",
             post(stop_and_increment_event),
         )
-        .with_state(Arc::new(AppState { db_conn_pool }));
+        .with_state(Arc::new(AppState { db_conn_pool }))
+        .layer(TraceLayer::new_for_http());
 
     // TODO: Configure this port with an environment var.
     let listener = TcpListener::bind("0.0.0.0:2010").await.unwrap();
