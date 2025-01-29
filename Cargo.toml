@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 axum = { version = "0.8.1", features = ["macros"] }
 axum-extra = "0.10.0"
+serde = "1.0.217"
 sqlx = { version = "0.8.3", features = ["postgres", "runtime-tokio", "uuid"] }
 # Unsure if one of `chrono` or `time` is more preferred for `query!` in sqlx,
 # see docs. I slightly prefer `chrono` because it uses strftime, which is at

@@ -3,14 +3,10 @@ mod logic;
 use std::sync::Arc;
 
 use axum::{
-    extract::{Path, State},
-    http::StatusCode,
-    response::IntoResponse,
-    routing::{get, post, put},
-    Router,
+    extract::Path, response::IntoResponse, routing::{get, post}, Json, Router
 };
 use axum_extra::routing::RouterExt as _;
-use logic::tracker_description;
+use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
 use uuid::Uuid;
@@ -42,25 +38,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // there were some middleware that did it that I could apply to the whole
     // router... but oh well.
     let app = Router::new()
+        // Multiple trackers:
+        .route_with_tsr("/trackers/", get(get_all_trackers).post(post_tracker))
         // Each tracker:
-        .route_with_tsr("/trackers/{tracker_id}/", put(put_event))
-        // TODO: Allow clients to set the description as well.
-        .route_with_tsr(
-            "/trackers/{tracker_id}/description/",
-            get(get_tracker_description),
-        )
-        .route_with_tsr("/trackers/{tracker_id}/list/", get(get_tracker_events_list))
-        .route_with_tsr("/trackers/{tracker_id}/status/", get(get_tracker_status))
+        .route_with_tsr("/trackers/{tracker_id}/", get(get_tracker_events_list))
+        .route_with_tsr("/trackers/{tracker_id}/status", get(get_tracker_status))
+        // Yes, I know they're verbs. Try and stop me. (It's just easier given
+        // that stop_and_increment/ exists, and Github does it too.)
         .route_with_tsr("/trackers/{tracker_id}/start/", post(start_event))
         .route_with_tsr("/trackers/{tracker_id}/stop/", post(stop_event))
         .route_with_tsr(
             "/trackers/{tracker_id}/stop_and_increment/",
             post(stop_and_increment_event),
         )
-        // Multiple trackers:
-        .route_with_tsr("/trackers/descriptions/", get(get_all_tracker_descriptions))
-        // Tags also serve as human-readable names for trackers.
-        .route_with_tsr("/tracker_tags/{tag}/", get(get_trackers_ids_by_tag))
         .with_state(Arc::new(AppState { db_conn_pool }));
 
     // TODO: Configure this port with an environment var.
@@ -70,21 +60,17 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     Ok(())
 }
 
-#[axum::debug_handler]
-async fn get_tracker_description(
-    State(state): State<Arc<AppState>>,
-    Path(tracker_id): Path<Uuid>,
-) -> Result<String, StatusCode> {
-    tracker_description(&state.db_conn_pool, tracker_id)
-        .await
-        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
-        .transpose()
-        .unwrap_or(Err(StatusCode::NOT_FOUND))
+#[derive(Deserialize, Serialize)]
+struct NewTracker {
+    name: String,
 }
 
 #[axum::debug_handler]
-async fn put_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!("Putting an event at {tracker_id}\n")
+async fn post_tracker(
+    Json(tracker): Json<NewTracker>,
+) -> impl IntoResponse {
+    // Just echos for now.
+    Json(tracker)
 }
 
 #[axum::debug_handler]
@@ -126,11 +112,7 @@ async fn stop_and_increment_event(Path(tracker_id): Path<Uuid>) -> impl IntoResp
 }
 
 #[axum::debug_handler]
-async fn get_all_tracker_descriptions() -> impl IntoResponse {
-    "Get all tracker descriptions\n"
-}
-
-#[axum::debug_handler]
-async fn get_trackers_ids_by_tag(Path(tag): Path<String>) -> impl IntoResponse {
-    format!("Definitely getting a list of tracker ids with the tag: {tag}\n")
+async fn get_all_trackers() -> impl IntoResponse {
+    // This should return a map (JSON object) from tracker names to their URLS.
+    "Get all tracker names & URLs\n"
 }
