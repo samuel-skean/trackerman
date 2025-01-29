@@ -72,7 +72,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         .route_with_tsr("/trackers/", get(get_all_trackers).post(post_tracker))
         // Each tracker:
         .route_with_tsr("/trackers/{tracker_id}/", get(get_tracker_events_list))
-        .route_with_tsr("/trackers/{tracker_id}/status", get(get_tracker_status))
+        .route_with_tsr("/trackers/{tracker_id}/status/", get(get_tracker_status))
         // Yes, I know they're verbs. Try and stop me. (It's just easier given
         // that stop_and_increment/ exists, and Github does it too.)
         .route_with_tsr("/trackers/{tracker_id}/start/", post(start_event))
