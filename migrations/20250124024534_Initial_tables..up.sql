@@ -3,8 +3,8 @@
 CREATE TABLE trackers
 (
     -- NOT NULL should be the default for PRIMARY KEYS, but just to be safe:
-    tracker_id UUID PRIMARY KEY DEFAULT gen_random_uuid () NOT NULL,
-    tracker_name TEXT UNIQUE NOT NULL
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid () NOT NULL,
+    human_name TEXT UNIQUE NOT NULL
 );
 
 CREATE TABLE events
