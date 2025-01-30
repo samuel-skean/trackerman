@@ -1,11 +1,17 @@
+mod domain_types;
 mod logic;
 
 use std::{str::FromStr as _, sync::Arc};
 
 use axum::{
-    extract::Path, response::IntoResponse, routing::{get, post}, Json, Router
+    extract::{Path, State},
+    http::{header, StatusCode},
+    response::IntoResponse,
+    routing::{get, post},
+    Json, Router,
 };
 use axum_extra::routing::RouterExt as _;
+use logic::create_tracker;
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
@@ -20,8 +26,6 @@ struct AppState {
 #[tokio::main]
 // Consider anyhow for errors, see [this post](https://www.reddit.com/r/rust/comments/17neomp/comment/k7rhrss/) for a nice breakdown.
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
-
     // Tracing: Generally following advice from fasterthanlime, here's an
     // example:
     // https://fasterthanli.me/series/building-a-rust-service-with-nix/part-4#adding-tracing
@@ -38,10 +42,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // because it seems a bit more complicated, especially to add fallback to
     // it. Don't just blindly follow that tutorial though, try using
     // EnvFilter::builder to provide fallback in a type-safe way.
-    let filter = tracing_subscriber::filter::Targets::from_str(std::env::var("RUST_LOG").as_deref().unwrap_or("info"))
-        .expect("RUST_LOG should be a valid tracing filter");
+    let filter = tracing_subscriber::filter::Targets::from_str(
+        std::env::var("RUST_LOG").as_deref().unwrap_or("info"),
+    )
+    .expect("RUST_LOG should be a valid tracing filter");
 
-    
     tracing_subscriber::fmt()
         .with_max_level(tracing::Level::TRACE)
         .finish()
@@ -98,10 +103,21 @@ struct NewTracker {
 
 #[axum::debug_handler]
 async fn post_tracker(
+    State(state): State<Arc<AppState>>,
     Json(tracker): Json<NewTracker>,
-) -> impl IntoResponse {
-    // Just echos for now.
-    Json(tracker)
+) -> Result<impl IntoResponse, StatusCode> {
+    // This logic should really live in logic.rs, but then we have to create unique error types.
+    let tracker_id = create_tracker(&state.db_conn_pool, tracker.name)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::Database(e) if e.is_unique_violation() => StatusCode::CONFLICT,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        })?
+        .id;
+    Ok((
+        StatusCode::CREATED,
+        [(header::LOCATION, format!("{tracker_id}/"))],
+    ))
 }
 
 #[axum::debug_handler]
