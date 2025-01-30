@@ -110,7 +110,7 @@ async fn post_tracker(
     let tracker_id = create_tracker(&state.db_conn_pool, tracker.name)
         .await
         .map_err(|e| match e {
-            sqlx::Error::Database(e) if e.is_unique_violation() => StatusCode::CONFLICT,
+            sqlx::Error::Database(e) if e.is_unique_violation() => StatusCode::UNPROCESSABLE_ENTITY,
             _ => StatusCode::INTERNAL_SERVER_ERROR,
         })?
         .id;
