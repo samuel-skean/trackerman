@@ -11,7 +11,7 @@ use axum::{
     Json, Router,
 };
 use axum_extra::routing::RouterExt as _;
-use logic::create_tracker;
+use logic::{create_tracker, tracker_events};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
@@ -121,8 +121,12 @@ async fn post_tracker(
 }
 
 #[axum::debug_handler]
-async fn get_tracker_events_list(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!("Getting events list for {tracker_id}\n")
+async fn get_tracker_events_list(
+    State(state): State<Arc<AppState>>,
+    Path(tracker_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let events = tracker_events(&state.db_conn_pool, tracker_id).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR).transpose().unwrap_or(Err(StatusCode::NOT_FOUND))?;
+    Ok(Json(events))
 }
 
 #[axum::debug_handler]
