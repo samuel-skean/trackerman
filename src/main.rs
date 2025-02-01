@@ -19,6 +19,10 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 use uuid::Uuid;
 
+
+// TODO: Send fully-qualified (http(s) and everything) URLs if possible, make
+// this universally configurable, but try to only handle URLs in this layer.
+
 struct AppState {
     db_conn_pool: PgPool,
 }
