@@ -1,7 +1,7 @@
 mod domain_types;
 mod logic;
 
-use std::{str::FromStr as _, sync::Arc};
+use std::{collections::HashMap, str::FromStr as _, sync::Arc};
 
 use axum::{
     extract::{Path, State},
@@ -11,7 +11,7 @@ use axum::{
     Json, Router,
 };
 use axum_extra::routing::RouterExt as _;
-use logic::{create_tracker, tracker_events};
+use logic::{all_trackers, create_tracker, tracker_events};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
@@ -163,7 +163,9 @@ async fn stop_and_increment_event(Path(tracker_id): Path<Uuid>) -> impl IntoResp
 }
 
 #[axum::debug_handler]
-async fn get_all_trackers() -> impl IntoResponse {
-    // This should return a map (JSON object) from tracker names to their URLS.
-    "Get all tracker names & URLs\n"
+async fn get_all_trackers(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, StatusCode> {
+    // Currently returns a map from human names to urls. This is slow the way we
+    // do it, and probably not the best - github and todoist return arrays.
+    let trackers = all_trackers(&state.db_conn_pool).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(trackers.into_iter().map(|t| (t.human_name, format!("{}/", t.id))).collect::<HashMap<_, _>>()))
 }
