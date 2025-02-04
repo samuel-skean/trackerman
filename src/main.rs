@@ -152,7 +152,7 @@ async fn start_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
 async fn stop_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
     format!(
         "Attempting to stop event for tracker {tracker_id}\n\
-             This would fail if the event were ongoing\n\
+             This would fail if the event were not ongoing\n\
              You could supply a new value for the counter here.\n"
     )
 }
@@ -161,7 +161,7 @@ async fn stop_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
 async fn stop_and_increment_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
     format!(
         "Attempting to stop event for tracker {tracker_id}\n\
-             This would fail if the event were ongoing\n\
+             This would fail if the event were not ongoing\n\
              You may not supply a new value for the counter here, it will simply be incremented\n"
     )
 }
