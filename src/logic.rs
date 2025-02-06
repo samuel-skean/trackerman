@@ -118,7 +118,9 @@ pub async fn tracker_events(
 }
 
 pub async fn all_trackers(pool: &PgPool) -> Result<Vec<Tracker>, sqlx::error::Error> {
-    query_as!(Tracker, "SELECT * FROM trackers").fetch_all(pool).await
+    query_as!(Tracker, "SELECT * FROM trackers")
+        .fetch_all(pool)
+        .await
 }
 
 // TODO: Effendy: status, start, stop

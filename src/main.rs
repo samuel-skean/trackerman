@@ -19,7 +19,6 @@ use tower_http::trace::TraceLayer;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 use uuid::Uuid;
 
-
 // TODO: Send fully-qualified (http(s) and everything) URLs if possible, make
 // this universally configurable, but try to only handle URLs in this layer.
 
@@ -129,7 +128,11 @@ async fn get_tracker_events_list(
     State(state): State<Arc<AppState>>,
     Path(tracker_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    let events = tracker_events(&state.db_conn_pool, tracker_id).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR).transpose().unwrap_or(Err(StatusCode::NOT_FOUND))?;
+    let events = tracker_events(&state.db_conn_pool, tracker_id)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)
+        .transpose()
+        .unwrap_or(Err(StatusCode::NOT_FOUND))?;
     Ok(Json(events))
 }
 
@@ -167,9 +170,18 @@ async fn stop_and_increment_event(Path(tracker_id): Path<Uuid>) -> impl IntoResp
 }
 
 #[axum::debug_handler]
-async fn get_all_trackers(State(state): State<Arc<AppState>>) -> Result<impl IntoResponse, StatusCode> {
+async fn get_all_trackers(
+    State(state): State<Arc<AppState>>,
+) -> Result<impl IntoResponse, StatusCode> {
     // Currently returns a map from human names to urls. This is slow the way we
     // do it, and probably not the best - github and todoist return arrays.
-    let trackers = all_trackers(&state.db_conn_pool).await.map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
-    Ok(Json(trackers.into_iter().map(|t| (t.human_name, format!("{}/", t.id))).collect::<HashMap<_, _>>()))
+    let trackers = all_trackers(&state.db_conn_pool)
+        .await
+        .map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    Ok(Json(
+        trackers
+            .into_iter()
+            .map(|t| (t.human_name, format!("{}/", t.id)))
+            .collect::<HashMap<_, _>>(),
+    ))
 }
