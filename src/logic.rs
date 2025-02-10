@@ -124,3 +124,29 @@ pub async fn all_trackers(pool: &PgPool) -> Result<Vec<Tracker>, sqlx::error::Er
 }
 
 // TODO: Effendy: status, start, stop
+
+// my interpretation of the start function is that it updates the start_time of an event, inserts the event into a
+// the events table to a tracker with a corresponding uuid, and returns the event.
+// question: how do i match the event to the tracker this way?
+pub async fn tracker_events_start(
+    pool: &PgPool,
+) -> Result<Event, sqlx::error::Error> {
+    query_as!(
+        Event,
+        "INSERT INTO events (start_time, end_time, new_value) 
+         VALUES (NOW(),NULL, NULL)",
+    )
+    .fetch_one(pool)
+    .await
+}
+
+pub async fn tracker_events_stop(
+    pool: &PgPool,
+) -> Result<Event, sqlx::error::Error> {
+    query_as!(
+        Event,
+        "UPDATE events SET end_time = NOW() WHERE end_time IS NULL RETURNING start_time, end_time, new_value",
+    )
+    .fetch_one(pool)
+    .await
+}
