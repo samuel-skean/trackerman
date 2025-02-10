@@ -134,8 +134,7 @@ pub async fn tracker_events_start(
     query_as!(
         Event,
         "INSERT INTO events (start_time, end_time, new_value) 
-         VALUES (NOW(),NULL, NULL) 
-         RETURNING start_time, end_time, new_value",
+         VALUES (NOW(),NULL, NULL)",
     )
     .fetch_one(pool)
     .await
