@@ -74,7 +74,7 @@ pub async fn tracker_events(
         NullableEvent,
         "SELECT events.tracker_id as \"tracker_id?\", events.start_time as \"start_time?\",
            events.end_time as \"end_time?\", events.new_value as \"new_value?\"
-           FROM events RIGHT OUTER JOIN trackers ON (events.tracker_id = trackers.id)
+           FROM trackers LEFT OUTER JOIN events ON (events.tracker_id = trackers.id)
            WHERE trackers.id = $1",
         id
     )
