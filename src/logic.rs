@@ -46,11 +46,13 @@ pub async fn tracker_events(
                     new_value: None,
                 } => Err(()),
                 NullableEvent {
-                    tracker_id: Some(_),
+                    // added tracker_id in Some so that it is properly scoped
+                    tracker_id: Some(tracker_id),
                     start_time: Some(start_time),
                     end_time,
                     new_value: Some(new_value),
                 } => Ok(Self {
+                    tracker_id,
                     start_time,
                     end_time,
                     new_value,
@@ -128,25 +130,31 @@ pub async fn all_trackers(pool: &PgPool) -> Result<Vec<Tracker>, sqlx::error::Er
 // my interpretation of the start function is that it updates the start_time of an event, inserts the event into a
 // the events table to a tracker with a corresponding uuid, and returns the event.
 // question: how do i match the event to the tracker this way?
+
+// UPDATE: i added sqlxinsert as a macro so that i don't have to return event when inserting.
+// ANOTHER UPDATE: that's gonna have to happen later, it causes a lot more issues when i have to write another struct and implementation on that struct.
 pub async fn tracker_events_start(
+    tracker_id: Uuid,
     pool: &PgPool,
-) -> Result<Event, sqlx::error::Error> {
+) -> Result<Event, sqlx::Error> {
     query_as!(
         Event,
-        "INSERT INTO events (start_time, end_time, new_value) 
-         VALUES (NOW(),NULL, NULL) 
-         RETURNING start_time, end_time, new_value",
+        "INSERT INTO events (tracker_id, start_time, end_time, new_value) 
+         VALUES ($1, NOW(), NULL, NULL) 
+         RETURNING tracker_id, start_time, end_time, new_value",
+        tracker_id
     )
     .fetch_one(pool)
     .await
 }
 
-pub async fn tracker_events_stop(
+pub async fn tracker_events_stop(tracker_id: Uuid,
     pool: &PgPool,
 ) -> Result<Event, sqlx::error::Error> {
     query_as!(
         Event,
-        "UPDATE events SET end_time = NOW() WHERE end_time IS NULL RETURNING start_time, end_time, new_value",
+        "UPDATE events SET end_time = NOW() WHERE tracker_id = $1 AND end_time IS NULL RETURNING tracker_id, start_time, end_time, new_value",
+        tracker_id
     )
     .fetch_one(pool)
     .await
