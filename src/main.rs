@@ -11,7 +11,9 @@ use axum::{
     Json, Router,
 };
 use axum_extra::routing::RouterExt as _;
-use logic::{all_trackers, create_tracker, tracker_events};
+use logic::{
+    all_trackers, create_tracker, tracker_events, tracker_events_start, tracker_events_stop,
+};
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
@@ -144,20 +146,31 @@ async fn get_tracker_status(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
 }
 
 #[axum::debug_handler]
-async fn start_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!(
-        "Attempting to start event for tracker {tracker_id}\n\
-             This would fail if the event were ongoing\n"
-    )
+async fn start_event(
+    State(state): State<Arc<AppState>>,
+    Path(tracker_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    match tracker_events_start(tracker_id, &state.db_conn_pool).await {
+        Ok(event) => Ok((
+            StatusCode::OK,
+            format!("Event started for tracker {tracker_id}"),
+        )),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 #[axum::debug_handler]
-async fn stop_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!(
-        "Attempting to stop event for tracker {tracker_id}\n\
-             This would fail if the event were not ongoing\n\
-             You could supply a new value for the counter here.\n"
-    )
+async fn stop_event(
+    State(state): State<Arc<AppState>>,
+    Path(tracker_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    match tracker_events_stop(tracker_id, &state.db_conn_pool).await {
+        Ok(event) => Ok((
+            StatusCode::OK,
+            format!("Event stopped for tracker {tracker_id}"),
+        )),
+        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
+    }
 }
 
 #[axum::debug_handler]
