@@ -14,10 +14,12 @@ use axum_extra::routing::RouterExt as _;
 use logic::{
     all_trackers, create_tracker, tracker_events, tracker_events_start, tracker_events_stop,
 };
+
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
+use tracing::event;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 use uuid::Uuid;
 
@@ -106,6 +108,14 @@ struct NewTracker {
     name: String,
 }
 
+#[derive(Deserialize, Serialize)]
+struct NewEvent {
+    tracker_id: Uuid,
+    start_time: chrono::NaiveDateTime,
+    end_time: Option<chrono::NaiveDateTime>,
+    new_value: i64,
+}
+
 #[axum::debug_handler]
 async fn post_tracker(
     State(state): State<Arc<AppState>>,
@@ -149,14 +159,18 @@ async fn get_tracker_status(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
 async fn start_event(
     State(state): State<Arc<AppState>>,
     Path(tracker_id): Path<Uuid>,
+    Json(event): Json<NewEvent>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match tracker_events_start(tracker_id, &state.db_conn_pool).await {
-        Ok(event) => Ok((
-            StatusCode::OK,
-            format!("Event started for tracker {tracker_id}"),
-        )),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+    let new_event = tracker_events_start(tracker_id, &state.db_conn_pool)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::Database(e) if e.is_unique_violation() => StatusCode::UNPROCESSABLE_ENTITY,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
+    Ok((
+        StatusCode::CREATED,
+        [(header::LOCATION, format!("{tracker_id}/events/"))],
+    ))
 }
 
 #[axum::debug_handler]
@@ -164,13 +178,14 @@ async fn stop_event(
     State(state): State<Arc<AppState>>,
     Path(tracker_id): Path<Uuid>,
 ) -> Result<impl IntoResponse, StatusCode> {
-    match tracker_events_stop(tracker_id, &state.db_conn_pool).await {
-        Ok(event) => Ok((
-            StatusCode::OK,
-            format!("Event stopped for tracker {tracker_id}"),
-        )),
-        Err(_) => Err(StatusCode::INTERNAL_SERVER_ERROR),
-    }
+    let stopped_event = tracker_events_stop(tracker_id, &state.db_conn_pool)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => StatusCode::NOT_FOUND,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
+
+    Ok((StatusCode::OK, Json(stopped_event)))
 }
 
 #[axum::debug_handler]

@@ -133,22 +133,38 @@ pub async fn all_trackers(pool: &PgPool) -> Result<Vec<Tracker>, sqlx::error::Er
 
 // UPDATE: i added sqlxinsert as a macro so that i don't have to return event when inserting.
 // ANOTHER UPDATE: that's gonna have to happen later, it causes a lot more issues when i have to write another struct and implementation on that struct.
-pub async fn tracker_events_start(
-    tracker_id: Uuid,
-    pool: &PgPool,
-) -> Result<Event, sqlx::Error> {
-    query_as!(
+
+pub async fn tracker_events_start(tracker_id: Uuid, pool: &PgPool) -> Result<Event, sqlx::Error> {
+    // Log tracker_id for debugging
+    tracing::info!("Starting event for tracker_id: {}", tracker_id);
+
+    // SQL doesn't like NULL times (i think this is specifically a postgres issue, see https://stackoverflow.com/questions/13934621/insert-null-empty-value-in-sql-datetime-column-by-default)
+
+    // TODO: fix end_time so that stop_event can actually work
+    let result = query_as!(
         Event,
         "INSERT INTO events (tracker_id, start_time, end_time, new_value) 
-         VALUES ($1, NOW(), NULL, NULL) 
+         VALUES ($1, NOW(), NOW(), 0) 
          RETURNING tracker_id, start_time, end_time, new_value",
         tracker_id
     )
     .fetch_one(pool)
-    .await
+    .await;
+
+    match result {
+        Ok(event) => {
+            tracing::info!("Event started successfully: {:?}", event);
+            Ok(event)
+        }
+        Err(e) => {
+            tracing::error!("Error starting event: {:?}", e);
+            Err(e)
+        }
+    }
 }
 
-pub async fn tracker_events_stop(tracker_id: Uuid,
+pub async fn tracker_events_stop(
+    tracker_id: Uuid,
     pool: &PgPool,
 ) -> Result<Event, sqlx::error::Error> {
     query_as!(
