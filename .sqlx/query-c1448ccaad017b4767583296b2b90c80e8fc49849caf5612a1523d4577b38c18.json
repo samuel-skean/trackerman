@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "UPDATE events SET end_time = NOW() WHERE tracker_id = $1 AND end_time IS NULL RETURNING tracker_id, start_time, end_time, new_value",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tracker_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "start_time",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 2,
+        "name": "end_time",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 3,
+        "name": "new_value",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "c1448ccaad017b4767583296b2b90c80e8fc49849caf5612a1523d4577b38c18"
+}

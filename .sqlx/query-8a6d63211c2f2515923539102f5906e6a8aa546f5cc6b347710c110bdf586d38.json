@@ -1,0 +1,40 @@
+{
+  "db_name": "PostgreSQL",
+  "query": "INSERT INTO events (tracker_id, start_time, end_time, new_value) \n         VALUES ($1, NOW(), NULL, NULL) \n         RETURNING tracker_id, start_time, end_time, new_value",
+  "describe": {
+    "columns": [
+      {
+        "ordinal": 0,
+        "name": "tracker_id",
+        "type_info": "Uuid"
+      },
+      {
+        "ordinal": 1,
+        "name": "start_time",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 2,
+        "name": "end_time",
+        "type_info": "Timestamp"
+      },
+      {
+        "ordinal": 3,
+        "name": "new_value",
+        "type_info": "Int8"
+      }
+    ],
+    "parameters": {
+      "Left": [
+        "Uuid"
+      ]
+    },
+    "nullable": [
+      false,
+      false,
+      true,
+      false
+    ]
+  },
+  "hash": "8a6d63211c2f2515923539102f5906e6a8aa546f5cc6b347710c110bdf586d38"
+}

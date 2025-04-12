@@ -11,11 +11,15 @@ use axum::{
     Json, Router,
 };
 use axum_extra::routing::RouterExt as _;
-use logic::{all_trackers, create_tracker, tracker_events};
+use logic::{
+    all_trackers, create_tracker, tracker_events, tracker_events_start, tracker_events_stop,
+};
+
 use serde::{Deserialize, Serialize};
 use sqlx::PgPool;
 use tokio::net::TcpListener;
 use tower_http::trace::TraceLayer;
+use tracing::event;
 use tracing_subscriber::{layer::SubscriberExt as _, util::SubscriberInitExt as _};
 use uuid::Uuid;
 
@@ -104,6 +108,14 @@ struct NewTracker {
     name: String,
 }
 
+#[derive(Deserialize, Serialize)]
+struct NewEvent {
+    tracker_id: Uuid,
+    start_time: chrono::NaiveDateTime,
+    end_time: Option<chrono::NaiveDateTime>,
+    new_value: i64,
+}
+
 #[axum::debug_handler]
 async fn post_tracker(
     State(state): State<Arc<AppState>>,
@@ -144,20 +156,36 @@ async fn get_tracker_status(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
 }
 
 #[axum::debug_handler]
-async fn start_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!(
-        "Attempting to start event for tracker {tracker_id}\n\
-             This would fail if the event were ongoing\n"
-    )
+async fn start_event(
+    State(state): State<Arc<AppState>>,
+    Path(tracker_id): Path<Uuid>,
+    Json(event): Json<NewEvent>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let new_event = tracker_events_start(tracker_id, &state.db_conn_pool)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::Database(e) if e.is_unique_violation() => StatusCode::UNPROCESSABLE_ENTITY,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
+    Ok((
+        StatusCode::CREATED,
+        [(header::LOCATION, format!("{tracker_id}/events/"))],
+    ))
 }
 
 #[axum::debug_handler]
-async fn stop_event(Path(tracker_id): Path<Uuid>) -> impl IntoResponse {
-    format!(
-        "Attempting to stop event for tracker {tracker_id}\n\
-             This would fail if the event were not ongoing\n\
-             You could supply a new value for the counter here.\n"
-    )
+async fn stop_event(
+    State(state): State<Arc<AppState>>,
+    Path(tracker_id): Path<Uuid>,
+) -> Result<impl IntoResponse, StatusCode> {
+    let stopped_event = tracker_events_stop(tracker_id, &state.db_conn_pool)
+        .await
+        .map_err(|e| match e {
+            sqlx::Error::RowNotFound => StatusCode::NOT_FOUND,
+            _ => StatusCode::INTERNAL_SERVER_ERROR,
+        })?;
+
+    Ok((StatusCode::OK, Json(stopped_event)))
 }
 
 #[axum::debug_handler]
